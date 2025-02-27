@@ -4807,8 +4807,46 @@ The following objects are masked from &#39;package:base&#39;:
     as.Date, as.Date.numeric</code></pre>
 </div>
 </div>
+</section>
+<section id="lab-questions" class="level2">
+<h2 class="anchored" data-anchor-id="lab-questions">Lab Questions</h2>
+<section id="question-1-public-data" class="level3">
+<h3 class="anchored" data-anchor-id="question-1-public-data">Question 1: Public Data</h3>
+<ul>
+<li>Allowing for data to be accessible to the general public makes it a bit more believable that the facts generated from the data-set are true and unbias. When we put a cloak on information, it can make it hard to believe, as we humans prefer to see something to believe. Even if people do not have the experience or resources to create the data analysis themselves, they can at least look at the raw data and with proper documentation of how it’s structured, you can somewhat understand the document. Public data is, in my opinion, one of the bridging aspects to science and public trust.</li>
+</ul>
+</section>
+<section id="data-set-import" class="level3">
+<h3 class="anchored" data-anchor-id="data-set-import">Data-set import</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>url <span class="ot">=</span> <span class="st">&quot;https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv&quot;</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>covid <span class="ot">=</span> <span class="fu">read_csv</span>(url)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Rows: 2502832 Columns: 6
+── Column specification ────────────────────────────────────────────────────────
+Delimiter: &quot;,&quot;
+chr  (3): county, state, fips
+dbl  (2): cases, deaths
+date (1): date
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(covid, <span class="dv">5</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 5 × 6
+  date       county    state      fips  cases deaths
+  &lt;date&gt;     &lt;chr&gt;     &lt;chr&gt;      &lt;chr&gt; &lt;dbl&gt;  &lt;dbl&gt;
+1 2020-01-21 Snohomish Washington 53061     1      0
+2 2020-01-22 Snohomish Washington 53061     1      0
+3 2020-01-23 Snohomish Washington 53061     1      0
+4 2020-01-24 Cook      Illinois   17031     1      0
+5 2020-01-24 Snohomish Washington 53061     1      0</code></pre>
+</div>
+</div>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->
