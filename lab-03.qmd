@@ -1,7 +1,32 @@
 ---
 title: "Lab 3: COVID-19"
 subtitle: "Ecosystem Sciences and Sustainability 330"
-
+author: 
+  - name: https://andiehal.github.io/Andies-Website/
+    email: andie.hal@colostate.edu
 format: html
+execute: 
+  echo: true
 ---
 
+## Library Codes
+
+```{r}
+library(tidyverse)
+library(flextable)
+library(zoo)
+```
+
+## Lab Questions
+
+### Question 1: Public Data
+
+-   Allowing for data to be accessible to the general public makes it a bit more believable that the facts generated from the data-set are true and unbias. When we put a cloak on information, it can make it hard to believe, as we humans prefer to see something to believe. Even if people do not have the experience or resources to create the data analysis themselves, they can at least look at the raw data and with proper documentation of how it's structured, you can somewhat understand the document. Public data is, in my opinion, one of the bridging aspects to science and public trust.
+
+### Data-set import
+
+```{r}
+url = "https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv"
+covid = read_csv(url)
+head(covid, 5)
+```
