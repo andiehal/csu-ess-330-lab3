@@ -23,10 +23,110 @@ library(zoo)
 
 -   Allowing for data to be accessible to the general public makes it a bit more believable that the facts generated from the data-set are true and unbias. When we put a cloak on information, it can make it hard to believe, as we humans prefer to see something to believe. Even if people do not have the experience or resources to create the data analysis themselves, they can at least look at the raw data and with proper documentation of how it's structured, you can somewhat understand the document. Public data is, in my opinion, one of the bridging aspects to science and public trust.
 
-### Data-set import
+#### Data-set import
 
 ```{r}
 url = "https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv"
 covid = read_csv(url)
 head(covid, 5)
+
+covid <- covid |>
+  filter(state == "Colorado")
 ```
+
+### Question 2: Daily Summary 
+
+Watch list of counties criteria -
+
+1.  More than 100 new cases per 100,000 residents over the past 14 days…
+
+```{r}
+# Creating Values
+my.date <- as.Date("2022-02-01")
+my.state <- "Colorado"
+
+class(my.date)
+class(my.state)
+```
+
+```{r}
+# Creating Data Tables based on Cases/Deaths
+selected_data <- covid |>
+  filter(state == my.state) |>
+  group_by(county) |>
+  mutate(new_cases = cases - lag(cases),
+         new_deaths = deaths - lag(deaths)) |>
+    filter(date == my.date)
+
+most_new_cases <- selected_data |>
+  arrange(-new_cases) |>
+  slice_max(new_cases, n = 5)
+
+most_cases <- selected_data |>
+  group_by(county) |>
+  mutate(cumulative_cases = cumsum(cases)) |>
+  ungroup() |>
+  arrange(-cumulative_cases) |>
+  slice_max(cumulative_cases, n = 5) 
+
+```
+
+### Question 3: Normalizing Data
+
+```{r}
+# Reading In the Data
+pop_url <- 'https://www2.census.gov/programs-surveys/popest/datasets/2020-2023/counties/totals/co-est2023-alldata.csv'
+population_census2 = read_csv(pop_url)
+head(population_census2, 5)
+
+```
+
+```{r}
+# Normalizing 
+population_census <- population_census |>
+  filter(STNAME == my.state) |>
+  mutate(fips = paste0(STATE, COUNTY)) |>
+  select(fips, contains("NAME", ignore.case = TRUE, vars = NULL) | contains("2021", ignore.case = TRUE, vars = NULL))
+  
+```
+
+ 3.2 The data has basically been filtered down to Colorado, and now can be matched with the 'fips' column from the covid data. 
+
+```{r}
+# Finding the Population Range in 2021
+range_population <- range(population_census$POPESTIMATE2021)
+
+print(range_population)
+
+```
+
+  3.3 The range of the population is between 741 and 5,811,596. 
+  
+  3.4 Joining the Data 
+
+```{r}
+combined_pop_covid <- inner_join(selected_data, population_census, by = "fips")
+
+capita_cases <- combined_pop_covid |>
+  mutate(percapitacases = cases/POPESTIMATE2021,
+         percapitanewcases = new_cases/POPESTIMATE2021,
+         percapitanewdeaths = new_deaths/POPESTIMATE2021) |>
+  select(county, fips, percapitacases, percapitanewcases, percapitanewdeaths) |>
+  glimpse()
+
+most_capita_cases <- capita_cases |>
+  arrange(-percapitacases) |>
+  slice_max(percapitacases, n = 5)
+
+most_new_capita_cases <- capita_cases |>
+  arrange(-percapitanewcases) |>
+  slice_max(percapitanewcases, n = 5)
+
+```
+### Question 4: Rolling thresholds 
+
+```{r}
+
+
+```
+
