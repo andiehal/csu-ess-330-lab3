@@ -31,7 +31,8 @@ covid = read_csv(url)
 head(covid, 5)
 
 covid <- covid |>
-  filter(state == "Colorado")
+  filter(state %in% c("California", "New York", "Colorado", "Ohio"))
+
 ```
 
 ### Question 2: Daily Summary 
@@ -105,6 +106,7 @@ print(range_population)
   3.4 Joining the Data 
 
 ```{r}
+#Creating the 2022-02-1 Joined Dataset
 combined_pop_covid <- inner_join(selected_data, population_census, by = "fips")
 
 capita_cases <- combined_pop_covid |>
@@ -123,10 +125,94 @@ most_new_capita_cases <- capita_cases |>
   slice_max(percapitanewcases, n = 5)
 
 ```
+
 ### Question 4: Rolling thresholds 
 
 ```{r}
+# Creating a date format
+combined_pop_covid$date <- as.Date(combined_pop_covid$date, format="%Y-%m-%d")
 
+twoweekreport_covid <- covid |>
+  filter(date >= (my.date - 14) & date < my.date)
+
+twoweekreport_covid <- twoweekreport_covid |>
+  left_join(population_census, by = "fips")
+
+county_summary <- twoweekreport_covid |>
+  group_by(county) |>
+  mutate(new_cases = cases - lag(cases),
+         new_deaths = deaths - lag(deaths)) |>
+  summarise(total_cases_14d = sum(new_cases, na.rm = TRUE), countypopulation = first(POPESTIMATE2021)) |>
+  mutate(cases_per_100k = (total_cases_14d / countypopulation) * 1000) |>
+  arrange(-cases_per_100k) |>
+  slice_max(cases_per_100k, n = 5)
+  
+```
+
+The top 5 counties include Lincoln, Alamosa, Mineral, Conejos, and Fremont. 
+
+### Question 5: Death Toll
+
+```{r}
+
+death_toll <- combined_pop_covid |>
+  group_by(county) |>
+  summarise(deathtollpercent = (deaths/DEATHS2021) * 100) |>
+  ungroup() |>
+  filter(deathtollpercent > 20) |>
+  arrange(deathtollpercent)
+
+ggplot(death_toll, aes(x = county, y = deathtollpercent)) +
+  geom_bar(stat = "identity", fill = "indianred1", color = "indianred4") +
+  labs(title = "Death Toll Percentage in Colorado Counties",
+       x = "County",
+       y = "Death Toll Percentage",
+       caption = "Counties with death toll percentages over 20% in 2021") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+### Question 6: Multi-state
+
+```{r}
+
+multistate <- covid |>
+  group_by(state) |>
+  arrange(state, date) |>
+  mutate(new_cases = cases - lag(cases)) |>
+  ungroup()
+
+multistate <- multistate |>
+  group_by(state) |>
+  mutate(new_cases_rollmean = rollmean(new_cases, k = 7, fill = NA, align = "right")) |>
+  ungroup()
+
+multistate <- multistate |>
+  filter(date == my.date)
+
+state_summary <- multistate |>
+  group_by(state) |>
+  summarise(mean_new_cases = mean(new_cases), mean_new_cases_rollmean = mean(new_cases_rollmean, na.rm = TRUE))
+
+print(state_summary)
+
+ggplot(state_summary, aes(x = state)) +
+  # Bar for Mean New Cases
+  geom_bar(aes(y = mean_new_cases, fill = "Mean New Cases"), stat = "identity", position = "dodge") +
+  # Bar for Mean New Cases Rollout
+  geom_bar(aes(y = mean_new_cases_rollmean, fill = "Mean New Cases Rollout"), stat = "identity", position = "dodge") +
+  # Facet by state
+  facet_wrap(~ state, scales = "free_y") +
+  labs(
+    title = "New Covid Cases Mean and Mean Rollout in CO, NY, CA, and OH",
+    x = "State",
+    y = "Cases/ Rollout",
+    caption = "Average of new cases and new case rollout in CO, NY, CA, and OH"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme(legend.title = element_blank()) +
+  scale_fill_manual(values = c("Mean New Cases" = "blue", "Mean New Cases Rollout" = "red"))
 
 ```
 
