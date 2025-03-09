@@ -314,3 +314,7 @@ ggplot(spacetime_result, aes(x = X_coord, y = Y_coord)) +
 ```
 
 > It seems as the middle of the county has the mean center of the COVID cases, which makes sense as the mean center will try to find the common area through the data. Since it is more concentrated on the eastern coast, it is mostly due to the large concentration of populations along the coast. It also seems like as the year goes on, it moves from west to east as well. As COVID started on the western coast due to travelers coming from China (Collins 2020), this would make sense that the trend started to move this way.
+>
+> Source:
+>
+> Collins, F. (2020, September 22). *How covid-19 took hold in North America and Europe*. National Institutes of Health. https://directorsblog.nih.gov/2020/09/22/how-covid-19-took-hold-in-north-america-and-europe/#:\~:text=It%20was%20nearly%2010%20months,The%20rest%20is%20history.
