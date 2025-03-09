@@ -19,27 +19,25 @@ library(zoo)
 
 ## Lab Questions
 
-### Question 1: Public Data
-
--   Allowing for data to be accessible to the general public makes it a bit more believable that the facts generated from the data-set are true and unbias. When we put a cloak on information, it can make it hard to believe, as we humans prefer to see something to believe. Even if people do not have the experience or resources to create the data analysis themselves, they can at least look at the raw data and with proper documentation of how it's structured, you can somewhat understand the document. Public data is, in my opinion, one of the bridging aspects to science and public trust.
-
-#### Data-set import
+> ### Question 1: Public Data
+>
+> -   Allowing for data to be accessible to the general public makes it a bit more believable that the facts generated from the data-set are true and unbias. When we put a cloak on information, it can make it hard to believe, as we humans prefer to see something to believe. Even if people do not have the experience or resources to create the data analysis themselves, they can at least look at the raw data and with proper documentation of how it's structured, you can somewhat understand the document. Public data is, in my opinion, one of the bridging aspects to science and public trust.
+>
+> #### Data-set import
 
 ```{r}
+# Covid Data URL Input
 url = "https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv"
 covid = read_csv(url)
 head(covid, 5)
 
-covid <- covid |>
-  filter(state %in% c("California", "New York", "Colorado", "Ohio"))
+# Covid Dataset only in Colorado
+CO_covid <- covid |>
+  filter(state == "Colorado")
 
 ```
 
-### Question 2: Daily Summary 
-
-Watch list of counties criteria -
-
-1.  More than 100 new cases per 100,000 residents over the past 14 days…
+> ### Question 2: Daily Summary
 
 ```{r}
 # Creating Values
@@ -52,46 +50,62 @@ class(my.state)
 
 ```{r}
 # Creating Data Tables based on Cases/Deaths
-selected_data <- covid |>
+selected_data <- CO_covid |>
   filter(state == my.state) |>
   group_by(county) |>
   mutate(new_cases = cases - lag(cases),
          new_deaths = deaths - lag(deaths)) |>
-    filter(date == my.date)
+  ungroup() |>
+  filter(date == my.date) |>
+  mutate(new_cases = replace_na(new_cases, 0))
 
+# Top 5 Counties with New Cases on 2022-02-01
 most_new_cases <- selected_data |>
-  arrange(-new_cases) |>
-  slice_max(new_cases, n = 5)
+  slice_max(new_cases, n = 5, with_ties = FALSE)
 
+print(most_new_cases)
+
+# Top 5 Counties with the Most Total Cases on 2022-02-01
 most_cases <- selected_data |>
   group_by(county) |>
-  mutate(cumulative_cases = cumsum(cases)) |>
+  mutate(cumulative_cases = sum(cases)) |>
   ungroup() |>
   arrange(-cumulative_cases) |>
   slice_max(cumulative_cases, n = 5) 
 
+print(most_cases)
+
+safe_counties <- selected_data |>
+  filter(new_cases < 100) |>
+  arrange(-new_cases)
+
+print(safe_counties)
+
 ```
 
-### Question 3: Normalizing Data
+> The counties that have the highest amount of cases and daily new cases are El Paso, Arapahoe, Denver, Adams, and Jefferson. With Arapahoe having a slightly smaller total amount of cases than Denver, but more daily cases on 2022-02-01. A list of safe counties is printed above, and there are 53 that have less than 100 new cases on this day.
+
+> ### Question 3: Normalizing Data
 
 ```{r}
-# Reading In the Data
+# Reading in the Census Population Data
 pop_url <- 'https://www2.census.gov/programs-surveys/popest/datasets/2020-2023/counties/totals/co-est2023-alldata.csv'
-population_census2 = read_csv(pop_url)
-head(population_census2, 5)
+population_census = read_csv(pop_url)
+head(population_census, 5)
 
 ```
 
 ```{r}
-# Normalizing 
+# Formalizing the Dataset & Preparing for Joining
 population_census <- population_census |>
   filter(STNAME == my.state) |>
   mutate(fips = paste0(STATE, COUNTY)) |>
   select(fips, contains("NAME", ignore.case = TRUE, vars = NULL) | contains("2021", ignore.case = TRUE, vars = NULL))
   
+head(population_census)
 ```
 
- 3.2 The data has basically been filtered down to Colorado, and now can be matched with the 'fips' column from the covid data. 
+> 3.2 The data has basically been filtered down to Colorado, and now can be matched with the 'fips' column from the covid data.
 
 ```{r}
 # Finding the Population Range in 2021
@@ -101,38 +115,46 @@ print(range_population)
 
 ```
 
-  3.3 The range of the population is between 741 and 5,811,596. 
-  
-  3.4 Joining the Data 
+> 3.3 The range of the population is between 741 and 5,811,596.
+>
+> 3.4 Joining the Data
 
 ```{r}
 #Creating the 2022-02-1 Joined Dataset
 combined_pop_covid <- inner_join(selected_data, population_census, by = "fips")
 
+# Finding the per capita cases and per capita new cases
 capita_cases <- combined_pop_covid |>
+  group_by(county) |>
   mutate(percapitacases = cases/POPESTIMATE2021,
-         percapitanewcases = new_cases/POPESTIMATE2021,
-         percapitanewdeaths = new_deaths/POPESTIMATE2021) |>
-  select(county, fips, percapitacases, percapitanewcases, percapitanewdeaths) |>
-  glimpse()
+         percapitanewcases = new_cases/POPESTIMATE2021) |>
+  select(county, fips, percapitacases, percapitanewcases) |>
+  ungroup()
 
+# Displaying the counties with the highest per capita cases
 most_capita_cases <- capita_cases |>
-  arrange(-percapitacases) |>
+  select(county, fips, percapitacases) |>
   slice_max(percapitacases, n = 5)
 
+print(most_capita_cases)
+
+# Displaying the counties with the highest new per capita cases
 most_new_capita_cases <- capita_cases |>
-  arrange(-percapitanewcases) |>
+  select(county, fips, percapitanewcases) |>
   slice_max(percapitanewcases, n = 5)
+
+print(most_new_capita_cases)
 
 ```
 
-### Question 4: Rolling thresholds 
+> ### Question 4: Rolling thresholds
 
 ```{r}
 # Creating a date format
 combined_pop_covid$date <- as.Date(combined_pop_covid$date, format="%Y-%m-%d")
 
-twoweekreport_covid <- covid |>
+# Filtering out the date range
+twoweekreport_covid <- CO_covid |>
   filter(date >= (my.date - 14) & date < my.date)
 
 twoweekreport_covid <- twoweekreport_covid |>
@@ -147,14 +169,15 @@ county_summary <- twoweekreport_covid |>
   arrange(-cases_per_100k) |>
   slice_max(cases_per_100k, n = 5)
   
+print(county_summary) 
 ```
 
-The top 5 counties include Lincoln, Alamosa, Mineral, Conejos, and Fremont. 
+> The top 5 counties include Lincoln, Alamosa, Mineral, Conejos, and Fremont.
 
-### Question 5: Death Toll
+> ### Question 5: Death Toll
 
 ```{r}
-
+# Calculating the Death Toll Percentage
 death_toll <- combined_pop_covid |>
   group_by(county) |>
   summarise(deathtollpercent = (deaths/DEATHS2021) * 100) |>
@@ -162,6 +185,9 @@ death_toll <- combined_pop_covid |>
   filter(deathtollpercent > 20) |>
   arrange(deathtollpercent)
 
+print(death_toll)
+
+# Plotting the data
 ggplot(death_toll, aes(x = county, y = deathtollpercent)) +
   geom_bar(stat = "identity", fill = "indianred1", color = "indianred4") +
   labs(title = "Death Toll Percentage in Colorado Counties",
@@ -172,14 +198,20 @@ ggplot(death_toll, aes(x = county, y = deathtollpercent)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 ```
-### Question 6: Multi-state
+
+> ### Question 6: Multi-state
 
 ```{r}
+# Filtering the Data
+multistate_covid <- covid |>
+  filter(state %in% c("New York", "Colorado", "Alabama", "Ohio"))
 
-multistate <- covid |>
-  group_by(state) |>
+multistate <- multistate_covid |>
+  group_by(state, date) |>
+  summarise(daily_cases = sum(cases, na.rm = TRUE)) |>
   arrange(state, date) |>
-  mutate(new_cases = cases - lag(cases)) |>
+  group_by(state) |>
+  mutate(new_cases = daily_cases - lag(daily_cases)) |>
   ungroup()
 
 multistate <- multistate |>
@@ -187,32 +219,98 @@ multistate <- multistate |>
   mutate(new_cases_rollmean = rollmean(new_cases, k = 7, fill = NA, align = "right")) |>
   ungroup()
 
-multistate <- multistate |>
-  filter(date == my.date)
+print(multistate)
 
-state_summary <- multistate |>
-  group_by(state) |>
-  summarise(mean_new_cases = mean(new_cases), mean_new_cases_rollmean = mean(new_cases_rollmean, na.rm = TRUE))
-
-print(state_summary)
-
-ggplot(state_summary, aes(x = state)) +
-  # Bar for Mean New Cases
-  geom_bar(aes(y = mean_new_cases, fill = "Mean New Cases"), stat = "identity", position = "dodge") +
-  # Bar for Mean New Cases Rollout
-  geom_bar(aes(y = mean_new_cases_rollmean, fill = "Mean New Cases Rollout"), stat = "identity", position = "dodge") +
-  # Facet by state
-  facet_wrap(~ state, scales = "free_y") +
+# Plotting the Data
+ggplot(multistate, (aes(x = date))) +
+  geom_col(aes(y = new_cases), fill = "indianred1", col = NA) +
+  geom_line(aes(y = new_cases_rollmean, color = state)) +
+  facet_wrap(~ state, nrow = 2, scales = "free_y") +
   labs(
-    title = "New Covid Cases Mean and Mean Rollout in CO, NY, CA, and OH",
-    x = "State",
-    y = "Cases/ Rollout",
-    caption = "Average of new cases and new case rollout in CO, NY, CA, and OH"
-  ) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  theme(legend.title = element_blank()) +
-  scale_fill_manual(values = c("Mean New Cases" = "blue", "Mean New Cases Rollout" = "red"))
+    title = "New Covid Cases and Mean Rollout in CO, NY, AL, and OH",
+    x = "Date",
+    y = "Number of Cases") +
+  theme_minimal() 
 
 ```
 
+> Part two - Cases per capita of each state
+
+```{r}
+#Reading in a second population census to include new states
+pop_url <- 'https://www2.census.gov/programs-surveys/popest/datasets/2020-2023/counties/totals/co-est2023-alldata.csv'
+multistate_pop_census = read_csv(pop_url)
+
+# Summarizing the needed data
+multistate_covid <- multistate_covid |>
+  group_by(state) |>
+  mutate(new_cases = cases - lag(cases),
+         new_deaths = deaths - lag(deaths)) |>
+  ungroup() |>
+  group_by(state, date) |>
+  summarise(daily_cases = sum(new_cases, na.rm = TRUE)) |>
+  ungroup()
+
+multistate_pop_census <- multistate_pop_census |>
+  select(STATE, COUNTY, contains("NAME", ignore.case = TRUE, vars = NULL) | contains("2021", ignore.case = TRUE, vars = NULL)) |>
+  filter(STNAME %in% c("New York", "Colorado", "Alabama", "Ohio"))
+
+multistate_pop_census <- multistate_pop_census |>  
+  group_by(STNAME) |>
+  summarise(total_population = sum(POPESTIMATE2021, na.rm = TRUE))
+
+# Joining the Data
+multistate_pop_census <- multistate_pop_census |>
+  inner_join(multistate_covid, by = c("STNAME" = "state")) |>
+  group_by(STNAME) |>
+  mutate(per_capita_cases = (daily_cases/total_population),
+         rollmean_capital = rollmean(per_capita_cases, k = 7, fill = NA, align = "right")) |>
+  ungroup()
+
+#Plotting the Data
+ggplot(multistate_pop_census, aes(x = date, y = rollmean_capital, col = STNAME, group = STNAME)) +
+  geom_line() +
+  labs(title = "Rolling Average over 7 Days of Covid Cases in CO, AL, OH, and NY",
+       x = "Date",
+       y = "Cases") +
+  theme_minimal()
+
+```
+
+> This analysis make it much easier to visualize the impact of covid, as you can directly compare the impact between the different states. Alabama looks as if it was heavily impacted during early 2022, which could be because of the lower total population then New York or Ohio. Although this could make the impact look much worst than it actually was. Overall I prefer this graph to the first.
+
+### Question 7: Space and Time
+
+```{r}
+# Reading in the Data
+spacetimeurl <- "https://raw.githubusercontent.com/mikejohnson51/csu-ess-330/refs/heads/main/resources/county-centroids.csv"
+spacetime_data = read_csv(spacetimeurl) 
+
+spacetime_data <- spacetime_data |>
+  inner_join(covid, by = "fips")
+
+spacetime_data$date <- as.Date(spacetime_data$date, format="%Y-%m-%d")
+
+#Calculating the weighted mean center 
+spacetime_result <- spacetime_data |>
+  group_by(date) |>
+  summarise(
+    X_coord = sum(LON * cases) / sum(cases),
+    Y_coord = sum(LAT * cases) / sum(cases),
+    total_cases = sum(cases)
+  )
+
+#Plotting the data
+ggplot(spacetime_result, aes(x = X_coord, y = Y_coord)) +
+  borders("state", fill = "gray90", colour = "white") +
+  geom_point(aes(x = X_coord, y = Y_coord, color = factor(month(date)), size = total_cases), alpha = 0.7) +
+  scale_size_continuous(range = c(2, 10)) +
+  scale_color_brewer(palette = "Set3") +
+  labs(title = "Weighted Mean Center of COVID Cases",
+       x = "Longitude", y = "Latitude",
+       color = "Month", size = "Total Cases") +
+  theme_minimal()
+
+```
+
+> It seems as the middle of the county has the mean center of the COVID cases, which makes sense as the mean center will try to find the common area through the data. Since it is more concentrated on the eastern coast, it is mostly due to the large concentration of populations along the coast. It also seems like as the year goes on, it moves from west to east as well. As COVID started on the western coast due to travelers coming from China (Collins 2020), this would make sense that the trend started to move this way.
